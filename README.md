@@ -1,17 +1,28 @@
 # Git Commit Conventions
 
+A reference guide for writing consistent, meaningful commit messages across three widely-used styles.
+
+---
+
+## Table of Contents
+
+- [1. Imperative Verb Style](#1-imperative-verb-style)
+- [2. Conventional Commits](#2-conventional-commits)
+- [3. Linux Kernel Style](#3-linux-kernel-style)
+
 ---
 
 ## 1. Imperative Verb Style
 
 The default convention in most open-source projects. Short, action-first, no prefix or scope.
 
-**Format**
+### Format
+
 ```
 <Verb> <what and where>
 ```
 
-**Verbs**
+### Verbs
 
 | Verb | Use |
 |---|---|
@@ -48,7 +59,8 @@ The default convention in most open-source projects. Short, action-first, no pre
 | `Track` | Begin monitoring or analytics |
 | `Integrate` | Connect an external service or API |
 
-**Examples**
+### Examples
+
 ```
 Fix null pointer in login handler
 Add rate limiting to API gateway
@@ -60,9 +72,10 @@ Refactor payment service for clarity
 
 ## 2. Conventional Commits
 
-A formal specification. Structured for tooling — automated changelogs, semantic versioning, CI triggers. Widely used in the JS/npm ecosystem and monorepos.
+A formal specification designed for tooling — automated changelogs, semantic versioning, and CI triggers. Widely used in the JavaScript/npm ecosystem and monorepos.
 
-**Format**
+### Format
+
 ```
 <type>(<scope>): <description>
 
@@ -71,7 +84,7 @@ A formal specification. Structured for tooling — automated changelogs, semanti
 [optional footer(s)]
 ```
 
-**Types**
+### Types
 
 | Type | Use |
 |---|---|
@@ -87,11 +100,12 @@ A formal specification. Structured for tooling — automated changelogs, semanti
 | `chore` | Maintenance tasks, tooling, non-src changes |
 | `revert` | Revert a previous commit |
 
-**Scope** is optional, refers to the area of the codebase affected: `auth`, `api`, `ui`, `db`, etc.
+> **Scope** is optional and refers to the area of the codebase affected: `auth`, `api`, `ui`, `db`, etc.
 
-**Breaking changes** are marked with `!` after the type/scope, or with `BREAKING CHANGE:` in the footer.
+> **Breaking changes** are marked with `!` after the type/scope, or with `BREAKING CHANGE:` in the footer.
 
-**Examples**
+### Examples
+
 ```
 feat(auth): add OAuth2 login support
 fix(api): handle empty response from payment gateway
@@ -105,7 +119,8 @@ feat!: drop support for Node 16
 feat(api)!: rename /users endpoint to /accounts
 ```
 
-**Full commit with body and footer**
+### Full Commit with Body and Footer
+
 ```
 fix(auth): prevent token refresh loop on expiry
 
@@ -120,14 +135,15 @@ BREAKING CHANGE: refreshToken() no longer retries automatically
 
 ## 3. Linux Kernel Style
 
-Used in the Linux kernel, Git itself, and low-level C projects. No formal spec. Subsystem or file-path prefix followed by imperative description.
+Used in the Linux kernel, Git itself, and low-level C projects. No formal spec — subsystem or file-path prefix followed by an imperative description.
 
-**Format**
+### Format
+
 ```
 <subsystem/area>: <imperative description>
 ```
 
-**Common Prefix Patterns**
+### Common Prefix Patterns
 
 | Pattern | Example |
 |---|---|
@@ -136,9 +152,10 @@ Used in the Linux kernel, Git itself, and low-level C projects. No formal spec. 
 | File or module | `tools/perf:`, `scripts:`, `Documentation:` |
 | Combined | `net/tcp:`, `mm/slab:`, `fs/ext4:` |
 
-**Verbs used** are the same imperative verbs as style 1, but lowercase.
+> **Verbs** follow the same imperative style as [Style 1](#1-imperative-verb-style), but lowercase.
 
-**Examples**
+### Examples
+
 ```
 net/tcp: fix race condition in connection teardown
 mm: remove unused page migration fallback
@@ -151,7 +168,10 @@ arch/arm64: enable FEAT_AFP by default
 usb: remove deprecated gadget interface
 ```
 
-**Multi-line with sign-off** (required for kernel submissions)
+### Multi-line with Sign-off
+
+Sign-offs are required for kernel submissions.
+
 ```
 net/tcp: fix wraparound in sequence number comparison
 
@@ -164,7 +184,7 @@ Reported-by: Jane Smith <jane@example.com>
 Signed-off-by: John Doe <john@example.com>
 ```
 
-**Trailer tags used in kernel commits**
+### Trailer Tags
 
 | Tag | Use |
 |---|---|
