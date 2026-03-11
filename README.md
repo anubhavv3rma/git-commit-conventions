@@ -1,14 +1,12 @@
 # Git Commit Conventions
 
-A reference guide for writing consistent, meaningful commit messages across three widely-used styles.
+A reference and validator for consistent Git commit messages.
 
 ---
 
-## Table of Contents
+## Style Reference
 
-- [1. Imperative Verb Style](#1-imperative-verb-style)
-- [2. Conventional Commits](#2-conventional-commits)
-- [3. Linux Kernel Style](#3-linux-kernel-style)
+Three styles are supported. Pick one per project and configure it in `commit-msg` by setting `HOOK_STYLE`.
 
 ---
 
@@ -21,6 +19,13 @@ The default convention in most open-source projects. Short, action-first, no pre
 ```
 <Verb> <what and where>
 ```
+
+### Rules
+
+- Start with a capital imperative verb from the list below
+- Max 72 characters
+- No trailing period
+- No conventional prefix (`feat:`, `fix:`, etc.)
 
 ### Verbs
 
@@ -72,7 +77,7 @@ Refactor payment service for clarity
 
 ## 2. Conventional Commits
 
-A formal specification designed for tooling — automated changelogs, semantic versioning, and CI triggers. Widely used in the JavaScript/npm ecosystem and monorepos.
+A formal specification designed for tooling: automated changelogs, semantic versioning, and CI triggers. Widely used in the JavaScript/npm ecosystem and monorepos.
 
 ### Format
 
@@ -83,6 +88,13 @@ A formal specification designed for tooling — automated changelogs, semantic v
 
 [optional footer(s)]
 ```
+
+### Rules
+
+- `type` must be one of the known types below
+- `scope` is optional — refers to the area of the codebase: `auth`, `api`, `ui`, `db`, etc.
+- Breaking changes are marked with `!` after the type/scope, or with `BREAKING CHANGE:` in the footer
+- Subject line max 72 characters
 
 ### Types
 
@@ -100,10 +112,6 @@ A formal specification designed for tooling — automated changelogs, semantic v
 | `chore` | Maintenance tasks, tooling, non-src changes |
 | `revert` | Revert a previous commit |
 
-> **Scope** is optional and refers to the area of the codebase affected: `auth`, `api`, `ui`, `db`, etc.
-
-> **Breaking changes** are marked with `!` after the type/scope, or with `BREAKING CHANGE:` in the footer.
-
 ### Examples
 
 ```
@@ -116,7 +124,6 @@ test(checkout): add edge cases for discount codes
 chore: update dependencies
 ci: add Node 20 to test matrix
 feat!: drop support for Node 16
-feat(api)!: rename /users endpoint to /accounts
 ```
 
 ### Full Commit with Body and Footer
@@ -135,13 +142,20 @@ BREAKING CHANGE: refreshToken() no longer retries automatically
 
 ## 3. Linux Kernel Style
 
-Used in the Linux kernel, Git itself, and low-level C projects. No formal spec — subsystem or file-path prefix followed by an imperative description.
+Used in the Linux kernel, Git itself, and low-level C projects. Subsystem or file-path prefix followed by an imperative description.
 
 ### Format
 
 ```
 <subsystem/area>: <imperative description>
 ```
+
+### Rules
+
+- Subsystem prefix is lowercase, may use `/` for paths (e.g. `net/tcp`, `drm/amd`)
+- Description starts with a lowercase imperative verb
+- Max 72 characters
+- No trailing period
 
 ### Common Prefix Patterns
 
@@ -151,8 +165,6 @@ Used in the Linux kernel, Git itself, and low-level C projects. No formal spec �
 | Driver path | `drm/amd:`, `usb/host:`, `sound/pci:` |
 | File or module | `tools/perf:`, `scripts:`, `Documentation:` |
 | Combined | `net/tcp:`, `mm/slab:`, `fs/ext4:` |
-
-> **Verbs** follow the same imperative style as [Style 1](#1-imperative-verb-style), but lowercase.
 
 ### Examples
 
@@ -196,3 +208,56 @@ Signed-off-by: John Doe <john@example.com>
 | `Fixes:` | Which commit introduced the bug |
 | `Cc:` | Notify a person or mailing list |
 | `Co-developed-by:` | Joint authorship |
+
+---
+
+## Quickstart
+
+### 1. Install the hook into your project
+
+Run this from the root of any Git repository:
+
+```bash
+/path/to/git-commit-conventions/install.sh
+```
+
+Or with curl:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/anubhavv3rma/git-commit-conventions/main/install.sh | bash
+```
+
+### 2. Set your preferred style
+
+Open `.git/hooks/commit-msg` in your project and set:
+
+```bash
+HOOK_STYLE="imperative"   # or: conventional | linux
+```
+
+### 3. Commit as usual
+
+The hook runs automatically on every `git commit`.
+
+---
+
+## Manual Validation
+
+You can validate a message without the hook:
+
+```bash
+./commit-msg "Fix null pointer in login handler" --style=imperative
+./commit-msg "feat(auth): add OAuth2 login" --style=conventional
+./commit-msg "net/tcp: fix race condition" --style=linux
+```
+
+---
+
+## Repository Structure
+
+```
+git-commit-conventions/
+├── commit-msg       # validator and git hook (source of truth)
+├── install.sh       # installs the hook into a target repo
+└── README.md
+```

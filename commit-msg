@@ -1,0 +1,259 @@
+#!/usr/bin/env bash
+
+# =============================================================================
+# commit-msg
+# Git commit message validator for three styles:
+#   1. Imperative Verb Style
+#   2. Conventional Commits
+#   3. Linux Kernel Style
+#
+# Usage (manual):
+#   ./commit-msg "Your commit message" --style=imperative
+#   ./commit-msg "Your commit message" --style=conventional
+#   ./commit-msg "Your commit message" --style=linux
+#
+# Usage (as git hook):
+#   Run ./install.sh from your project root, then set HOOK_STYLE below.
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# CONFIGURATION
+# Set your preferred style when used as a git hook:
+#   imperative | conventional | linux
+# -----------------------------------------------------------------------------
+HOOK_STYLE="imperative"
+
+
+# -----------------------------------------------------------------------------
+# COLORS
+# -----------------------------------------------------------------------------
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
+
+# -----------------------------------------------------------------------------
+# ARGUMENT PARSING
+# Two modes:
+#   Git hook  — git passes a file path as $1
+#   Manual    — user passes a message string and --style= flag
+# -----------------------------------------------------------------------------
+if [[ -f "$1" ]]; then
+    COMMIT_MSG=$(cat "$1")
+    STYLE="$HOOK_STYLE"
+else
+    COMMIT_MSG="$1"
+    STYLE=""
+    for arg in "$@"; do
+        case $arg in
+            --style=*) STYLE="${arg#*=}" ;;
+        esac
+    done
+fi
+
+
+# -----------------------------------------------------------------------------
+# OUTPUT HELPERS
+# -----------------------------------------------------------------------------
+show_error() {
+    echo -e "${RED}${BOLD}Invalid commit message.${RESET}"
+    echo -e "${YELLOW}Message:${RESET} \"$COMMIT_MSG\""
+    echo -e "${YELLOW}Reason:${RESET}  $1"
+    echo ""
+}
+
+show_success() {
+    echo -e "${GREEN}${BOLD}Valid.${RESET}"
+    echo -e "${CYAN}Style:${RESET}   $1"
+    echo -e "${CYAN}Message:${RESET} \"$COMMIT_MSG\""
+    echo ""
+}
+
+show_usage() {
+    echo -e "${BOLD}Usage:${RESET}"
+    echo "  ./commit-msg \"<message>\" --style=<style>"
+    echo ""
+    echo -e "${BOLD}Styles:${RESET}"
+    echo "  --style=imperative     e.g. \"Fix null pointer in login handler\""
+    echo "  --style=conventional   e.g. \"feat(auth): add OAuth2 login support\""
+    echo "  --style=linux          e.g. \"net/tcp: fix race condition in teardown\""
+    echo ""
+}
+
+
+# -----------------------------------------------------------------------------
+# VALIDATOR: Imperative Verb Style
+# Rules:
+#   - Starts with a recognized capital imperative verb
+#   - No trailing period
+#   - Max 72 characters
+#   - Does not look like a conventional or linux kernel commit
+# -----------------------------------------------------------------------------
+IMPERATIVE_VERBS=(
+    Add Update Fix Remove Refactor Rename Move Revert Merge Bump
+    Release Init Configure Improve Optimize Clean Format Document
+    Test Mock Secure Deprecate Enable Disable Migrate Seed Pin
+    Upgrade Downgrade Localize Track Integrate
+)
+
+validate_imperative() {
+    local msg="$1"
+    local first_word
+    first_word=$(echo "$msg" | awk '{print $1}')
+
+    [[ -z "$msg" ]] && { show_error "Commit message is empty."; return 1; }
+
+    if [[ ${#msg} -gt 72 ]]; then
+        show_error "Too long (${#msg} chars). Max is 72 characters."
+        return 1
+    fi
+
+    if [[ "$msg" == *. ]]; then
+        show_error "Must not end with a period."
+        return 1
+    fi
+
+    if echo "$msg" | grep -qE '^[a-z]+(\([a-zA-Z0-9_/-]+\))?!?:'; then
+        show_error "Looks like a Conventional Commit. Use --style=conventional instead."
+        return 1
+    fi
+
+    if echo "$msg" | grep -qE '^[a-z][a-zA-Z0-9/_-]+:'; then
+        show_error "Looks like a Linux Kernel commit. Use --style=linux instead."
+        return 1
+    fi
+
+    local valid=false
+    for verb in "${IMPERATIVE_VERBS[@]}"; do
+        [[ "$first_word" == "$verb" ]] && valid=true && break
+    done
+
+    if [[ "$valid" == false ]]; then
+        show_error "Must start with a recognized imperative verb."
+        echo -e "${YELLOW}Got:${RESET}        \"$first_word\""
+        echo -e "${YELLOW}Valid verbs:${RESET} ${IMPERATIVE_VERBS[*]}"
+        echo ""
+        return 1
+    fi
+
+    show_success "Imperative Verb Style"
+    return 0
+}
+
+
+# -----------------------------------------------------------------------------
+# VALIDATOR: Conventional Commits
+# Rules:
+#   - Format: <type>(<scope>): <description>
+#   - type must be a known type
+#   - scope is optional
+#   - breaking change marked with ! before colon
+#   - max 72 characters for subject line
+# -----------------------------------------------------------------------------
+CONVENTIONAL_TYPES="feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert"
+
+validate_conventional() {
+    local msg="$1"
+    local subject
+    subject=$(echo "$msg" | head -n1)
+
+    [[ -z "$msg" ]] && { show_error "Commit message is empty."; return 1; }
+
+    if [[ ${#subject} -gt 72 ]]; then
+        show_error "Subject line too long (${#subject} chars). Max is 72 characters."
+        return 1
+    fi
+
+    if ! echo "$subject" | grep -qE "^(${CONVENTIONAL_TYPES})(\([a-zA-Z0-9_/,-]+\))?!?: .+"; then
+        show_error "Does not match Conventional Commits format."
+        echo -e "${YELLOW}Expected:${RESET} <type>(<scope>): <description>"
+        echo -e "${YELLOW}Example:${RESET}  feat(auth): add OAuth2 login support"
+        echo -e "${YELLOW}Types:${RESET}    feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+        echo ""
+        return 1
+    fi
+
+    show_success "Conventional Commits"
+    return 0
+}
+
+
+# -----------------------------------------------------------------------------
+# VALIDATOR: Linux Kernel Style
+# Rules:
+#   - Format: <subsystem>: <description>
+#   - subsystem is lowercase, may contain / for paths
+#   - description starts with lowercase imperative verb
+#   - max 72 characters
+#   - no trailing period
+# -----------------------------------------------------------------------------
+validate_linux() {
+    local msg="$1"
+    local subject
+    subject=$(echo "$msg" | head -n1)
+
+    [[ -z "$msg" ]] && { show_error "Commit message is empty."; return 1; }
+
+    if [[ ${#subject} -gt 72 ]]; then
+        show_error "Subject line too long (${#subject} chars). Max is 72 characters."
+        return 1
+    fi
+
+    if [[ "$subject" == *. ]]; then
+        show_error "Must not end with a period."
+        return 1
+    fi
+
+    if ! echo "$subject" | grep -qE '^[a-z][a-zA-Z0-9_/-]+: [a-z].+'; then
+        show_error "Does not match Linux Kernel Style format."
+        echo -e "${YELLOW}Expected:${RESET} <subsystem>: <lowercase description>"
+        echo -e "${YELLOW}Example:${RESET}  net/tcp: fix race condition in connection teardown"
+        echo -e "${YELLOW}Example:${RESET}  mm: remove unused page migration fallback"
+        echo ""
+        return 1
+    fi
+
+    local prefix
+    prefix=$(echo "$subject" | grep -oE '^[^:]+')
+    if echo "$prefix" | grep -qE '[A-Z]'; then
+        show_error "Subsystem prefix must be lowercase. Got: \"$prefix\""
+        return 1
+    fi
+
+    show_success "Linux Kernel Style"
+    return 0
+}
+
+
+# -----------------------------------------------------------------------------
+# MAIN
+# -----------------------------------------------------------------------------
+if [[ -z "$COMMIT_MSG" ]]; then
+    echo -e "${RED}${BOLD}Error:${RESET} No commit message provided."
+    echo ""
+    show_usage
+    exit 1
+fi
+
+if [[ -z "$STYLE" ]]; then
+    echo -e "${RED}${BOLD}Error:${RESET} No style specified."
+    echo ""
+    show_usage
+    exit 1
+fi
+
+case "$STYLE" in
+    imperative)   validate_imperative "$COMMIT_MSG";   exit $? ;;
+    conventional) validate_conventional "$COMMIT_MSG"; exit $? ;;
+    linux)        validate_linux "$COMMIT_MSG";        exit $? ;;
+    *)
+        echo -e "${RED}${BOLD}Error:${RESET} Unknown style \"$STYLE\"."
+        echo ""
+        show_usage
+        exit 1
+        ;;
+esac
